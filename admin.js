@@ -111,7 +111,12 @@ bookingsList.addEventListener('click', async function (e) {
       return;
     }
 
-    dashboardStatus.textContent = '';
+    if (data.emailWarning) {
+      dashboardStatus.textContent = data.emailWarning;
+      dashboardStatus.className = 'status error';
+    } else {
+      dashboardStatus.textContent = '';
+    }
     loadBookings();
   } catch (err) {
     dashboardStatus.textContent = 'Failed to update booking.';

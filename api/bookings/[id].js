@@ -1,5 +1,24 @@
 const { sql, ensureSchema } = require('../../lib/db');
 const { isAuthenticated } = require('../../lib/auth');
+const { escapeHtml, sendEmail } = require('../../lib/email');
+
+function formatDateForEmail(dateValue) {
+  return new Date(dateValue).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function formatTimeForEmail(timeStr) {
+  const [hour, minute] = timeStr.split(':').map(Number);
+  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'PATCH') {
@@ -30,7 +49,8 @@ module.exports = async function handler(req, res) {
     await ensureSchema();
 
     const rows = await sql`
-      UPDATE bookings SET status = ${newStatus} WHERE id = ${bookingId} RETURNING id
+      UPDATE bookings SET status = ${newStatus} WHERE id = ${bookingId}
+      RETURNING id, name, email, appointment_date, appointment_time
     `;
 
     if (rows.length === 0) {
@@ -38,7 +58,27 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ success: true });
+    let emailWarning = null;
+
+    if (action === 'confirm') {
+      const booking = rows[0];
+      try {
+        await sendEmail({
+          to: booking.email,
+          subject: 'Your appointment at Lumière Hair Studio is confirmed',
+          html: `<p>Hi ${escapeHtml(booking.name)},</p>
+                 <p>Your appointment has been <strong>confirmed</strong> for:</p>
+                 <p><strong>${escapeHtml(formatDateForEmail(booking.appointment_date))}</strong> at
+                 <strong>${escapeHtml(formatTimeForEmail(booking.appointment_time))}</strong></p>
+                 <p>We look forward to seeing you at Lumière Hair Studio!</p>
+                 <p>123 Main Street, Your City<br>(555) 123-4567</p>`,
+        });
+      } catch (emailErr) {
+        emailWarning = 'Booking confirmed, but the confirmation email failed to send.';
+      }
+    }
+
+    res.status(200).json({ success: true, emailWarning });
   } catch (err) {
     if (err && err.code === '23505') {
       res.status(409).json({ error: 'That time slot is already booked by another confirmed appointment.' });

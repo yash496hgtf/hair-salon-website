@@ -1,15 +1,7 @@
 const { sql, ensureSchema } = require('../lib/db');
+const { escapeHtml, sendEmail } = require('../lib/email');
 
 const BOOKING_EMAIL = 'yashikmaharaj496@gmail.com';
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function validateAppointment(dateStr, timeStr) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '') || !/^\d{2}:\d{2}$/.test(timeStr || '')) {
@@ -34,6 +26,10 @@ function validateAppointment(dateStr, timeStr) {
   const minutesSinceMidnight = hour * 60 + minute;
   if (minutesSinceMidnight < 9 * 60 || minutesSinceMidnight > 19 * 60) {
     return 'Appointment time must be between 9:00 AM and 7:00 PM';
+  }
+
+  if (minute !== 0 && minute !== 30) {
+    return 'Appointment time must be in 30-minute increments';
   }
 
   return null;
@@ -82,32 +78,18 @@ module.exports = async function handler(req, res) {
     `;
     const bookingId = inserted[0].id;
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Lumière Hair Studio <onboarding@resend.dev>',
-        to: [BOOKING_EMAIL],
-        reply_to: email,
-        subject: `New booking request from ${name} — ${date} ${time}`,
-        html: `<p><strong>Name:</strong> ${escapeHtml(name)}</p>
-               <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-               <p><strong>Requested Date:</strong> ${escapeHtml(date)}</p>
-               <p><strong>Requested Time:</strong> ${escapeHtml(time)}</p>
-               <p><strong>Message:</strong></p>
-               <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
-               <p>This request is <strong>pending</strong> — confirm or decline it from the admin page.</p>`,
-      }),
+    await sendEmail({
+      to: BOOKING_EMAIL,
+      replyTo: email,
+      subject: `New booking request from ${name} — ${date} ${time}`,
+      html: `<p><strong>Name:</strong> ${escapeHtml(name)}</p>
+             <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+             <p><strong>Requested Date:</strong> ${escapeHtml(date)}</p>
+             <p><strong>Requested Time:</strong> ${escapeHtml(time)}</p>
+             <p><strong>Message:</strong></p>
+             <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
+             <p>This request is <strong>pending</strong> — confirm or decline it from the admin page.</p>`,
     });
-
-    if (!resendRes.ok) {
-      const details = await resendRes.text();
-      res.status(502).json({ error: 'Failed to send email', details });
-      return;
-    }
 
     res.status(200).json({ success: true, bookingId });
   } catch (err) {
