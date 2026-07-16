@@ -192,6 +192,19 @@ section h2 {
   font-size: 1rem;
 }
 
+#form-status {
+  font-size: 0.95rem;
+  min-height: 1.2em;
+}
+
+#form-status.success {
+  color: #2e7d32;
+}
+
+#form-status.error {
+  color: #c62828;
+}
+
 footer {
   background: #1c1c1c;
   color: #ccc;

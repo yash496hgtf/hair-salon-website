@@ -77,11 +77,12 @@
       <p><strong>Phone:</strong> (555) 123-4567</p>
       <p><strong>Hours:</strong> Tue–Sat, 9am–7pm</p>
     </div>
-    <form class="contact-form">
-      <input type="text" placeholder="Your Name" required>
-      <input type="email" placeholder="Your Email" required>
-      <textarea placeholder="Message" rows="4" required></textarea>
+    <form class="contact-form" id="booking-form">
+      <input type="text" name="name" placeholder="Your Name" required>
+      <input type="email" name="email" placeholder="Your Email" required>
+      <textarea name="message" placeholder="Message" rows="4" required></textarea>
       <button type="submit" class="btn">Send Message</button>
+      <p id="form-status"></p>
     </form>
   </div>
 </section>
@@ -89,6 +90,43 @@
 <footer>
   <p>&copy; 2026 Lumière Hair Studio. All rights reserved.</p>
 </footer>
+
+<script>
+  const bookingForm = document.getElementById('booking-form');
+  const formStatus = document.getElementById('form-status');
+
+  bookingForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    formStatus.textContent = 'Sending...';
+    formStatus.className = '';
+
+    const payload = {
+      name: bookingForm.name.value,
+      email: bookingForm.email.value,
+      message: bookingForm.message.value,
+    };
+
+    try {
+      const response = await fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        formStatus.textContent = 'Thanks! Your message has been sent — we\'ll be in touch soon.';
+        formStatus.className = 'success';
+        bookingForm.reset();
+      } else {
+        formStatus.textContent = 'Something went wrong. Please try again or call us directly.';
+        formStatus.className = 'error';
+      }
+    } catch (err) {
+      formStatus.textContent = 'Something went wrong. Please try again or call us directly.';
+      formStatus.className = 'error';
+    }
+  });
+</script>
 
 </body>
 </html>
