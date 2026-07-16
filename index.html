@@ -86,7 +86,9 @@
       </div>
       <div class="form-row">
         <label for="appt-time">Appointment Time (Tue–Sat, 9am–7pm)</label>
-        <input type="time" name="time" id="appt-time" min="09:00" max="19:00" step="1800" required>
+        <select name="time" id="appt-time" required>
+          <option value="" disabled selected>Select a time</option>
+        </select>
       </div>
       <textarea name="message" placeholder="Message" rows="4" required></textarea>
       <button type="submit" class="btn">Send Message</button>
@@ -103,8 +105,23 @@
   const bookingForm = document.getElementById('booking-form');
   const formStatus = document.getElementById('form-status');
   const apptDateInput = document.getElementById('appt-date');
+  const apptTimeSelect = document.getElementById('appt-time');
 
   apptDateInput.min = new Date().toISOString().split('T')[0];
+
+  for (let minutes = 9 * 60; minutes <= 19 * 60; minutes += 30) {
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    const value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+    const label = new Date(2000, 0, 1, hour, minute).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    apptTimeSelect.appendChild(option);
+  }
 
   function validateAppointment(dateStr, timeStr) {
     if (!dateStr || !timeStr) {
