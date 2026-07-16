@@ -80,6 +80,14 @@
     <form class="contact-form" id="booking-form">
       <input type="text" name="name" placeholder="Your Name" required>
       <input type="email" name="email" placeholder="Your Email" required>
+      <div class="form-row">
+        <label for="appt-date">Appointment Date</label>
+        <input type="date" name="date" id="appt-date" required>
+      </div>
+      <div class="form-row">
+        <label for="appt-time">Appointment Time (Tue–Sat, 9am–7pm)</label>
+        <input type="time" name="time" id="appt-time" min="09:00" max="19:00" required>
+      </div>
       <textarea name="message" placeholder="Message" rows="4" required></textarea>
       <button type="submit" class="btn">Send Message</button>
       <p id="form-status"></p>
@@ -94,15 +102,56 @@
 <script>
   const bookingForm = document.getElementById('booking-form');
   const formStatus = document.getElementById('form-status');
+  const apptDateInput = document.getElementById('appt-date');
+
+  apptDateInput.min = new Date().toISOString().split('T')[0];
+
+  function validateAppointment(dateStr, timeStr) {
+    if (!dateStr || !timeStr) {
+      return 'Please choose an appointment date and time.';
+    }
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day);
+    const dayOfWeek = selectedDate.getDay(); // 0 = Sun, 1 = Mon, ... 6 = Sat
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      return 'Please choose a future date.';
+    }
+
+    if (dayOfWeek === 0 || dayOfWeek === 1) {
+      return 'We\'re open Tuesday–Saturday. Please choose a different day.';
+    }
+
+    const [hour, minute] = timeStr.split(':').map(Number);
+    const minutesSinceMidnight = hour * 60 + minute;
+    if (minutesSinceMidnight < 9 * 60 || minutesSinceMidnight > 19 * 60) {
+      return 'Please choose a time between 9:00 AM and 7:00 PM.';
+    }
+
+    return null;
+  }
 
   bookingForm.addEventListener('submit', async function (e) {
     e.preventDefault();
+
+    const validationError = validateAppointment(bookingForm.date.value, bookingForm.time.value);
+    if (validationError) {
+      formStatus.textContent = validationError;
+      formStatus.className = 'error';
+      return;
+    }
+
     formStatus.textContent = 'Sending...';
     formStatus.className = '';
 
     const payload = {
       name: bookingForm.name.value,
       email: bookingForm.email.value,
+      date: bookingForm.date.value,
+      time: bookingForm.time.value,
       message: bookingForm.message.value,
     };
 

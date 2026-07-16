@@ -192,6 +192,21 @@ section h2 {
   font-size: 1rem;
 }
 
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-row label {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.form-row input {
+  width: 100%;
+}
+
 #form-status {
   font-size: 0.95rem;
   min-height: 1.2em;
