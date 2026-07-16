@@ -1,3 +1,5 @@
+const { sql, ensureSchema } = require('../lib/db');
+
 const BOOKING_EMAIL = 'yashikmaharaj496@gmail.com';
 
 function escapeHtml(str) {
@@ -62,6 +64,24 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    await ensureSchema();
+
+    const conflicting = await sql`
+      SELECT id FROM bookings
+      WHERE appointment_date = ${date} AND appointment_time = ${time} AND status = 'confirmed'
+    `;
+    if (conflicting.length > 0) {
+      res.status(409).json({ error: 'That time slot is already booked. Please choose another time.' });
+      return;
+    }
+
+    const inserted = await sql`
+      INSERT INTO bookings (name, email, appointment_date, appointment_time, message)
+      VALUES (${name}, ${email}, ${date}, ${time}, ${message})
+      RETURNING id
+    `;
+    const bookingId = inserted[0].id;
+
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -78,7 +98,8 @@ module.exports = async function handler(req, res) {
                <p><strong>Requested Date:</strong> ${escapeHtml(date)}</p>
                <p><strong>Requested Time:</strong> ${escapeHtml(time)}</p>
                <p><strong>Message:</strong></p>
-               <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`,
+               <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
+               <p>This request is <strong>pending</strong> — confirm or decline it from the admin page.</p>`,
       }),
     });
 
@@ -88,7 +109,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, bookingId });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

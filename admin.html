@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin — Lumière Hair Studio</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div id="login-view" class="admin-wrap">
+  <h1>Admin Login</h1>
+  <form id="login-form">
+    <input type="password" id="password" placeholder="Password" required>
+    <button type="submit" class="btn">Log In</button>
+    <p id="login-status" class="status"></p>
+  </form>
+</div>
+
+<div id="dashboard-view" class="admin-wrap" style="display:none;">
+  <div class="admin-header">
+    <h1>Booking Requests</h1>
+    <button id="logout-btn" class="btn-secondary">Log Out</button>
+  </div>
+  <p id="dashboard-status" class="status"></p>
+  <div id="bookings-list"></div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
