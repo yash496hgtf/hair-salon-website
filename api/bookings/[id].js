@@ -1,6 +1,20 @@
 const { sql, ensureSchema } = require('../../lib/db');
 const { isAuthenticated } = require('../../lib/auth');
 const { escapeHtml, sendEmail } = require('../../lib/email');
+const { findNearestAvailableSlots, normalizeDateStr } = require('../../lib/slots');
+
+const SITE_URL = 'https://hair-salon-website-two.vercel.app';
+
+function buildRebookLink(booking, slot) {
+  const params = new URLSearchParams({
+    name: booking.name,
+    email: booking.email,
+    date: slot.date,
+    time: slot.time,
+    message: booking.message || '',
+  });
+  return `${SITE_URL}/?${params.toString()}#contact`;
+}
 
 function formatDateForEmail(dateValue) {
   return new Date(dateValue).toLocaleDateString('en-US', {
@@ -50,7 +64,7 @@ module.exports = async function handler(req, res) {
 
     const rows = await sql`
       UPDATE bookings SET status = ${newStatus} WHERE id = ${bookingId}
-      RETURNING id, name, email, appointment_date, appointment_time
+      RETURNING id, name, email, appointment_date, appointment_time, message
     `;
 
     if (rows.length === 0) {
@@ -75,6 +89,42 @@ module.exports = async function handler(req, res) {
         });
       } catch (emailErr) {
         emailWarning = 'Booking confirmed, but the confirmation email failed to send.';
+      }
+    }
+
+    if (action === 'decline') {
+      const booking = rows[0];
+      try {
+        const targetDate = normalizeDateStr(booking.appointment_date);
+        const targetTime = String(booking.appointment_time).slice(0, 5);
+        const slots = await findNearestAvailableSlots(sql, targetDate, targetTime);
+
+        const optionsHtml = slots.length
+          ? slots
+              .map((slot) => {
+                const label = `${formatDateForEmail(slot.date)} at ${formatTimeForEmail(slot.time)}`;
+                return `<a href="${buildRebookLink(booking, slot)}"
+                          style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 18px;
+                                 border-radius:4px;text-decoration:none;margin:6px 8px 6px 0;font-family:sans-serif;">
+                          ${escapeHtml(label)}
+                        </a>`;
+              })
+              .join('')
+          : '<p>We don’t have another opening in the next couple of weeks — please call us at (555) 123-4567 to find a time.</p>';
+
+        await sendEmail({
+          to: booking.email,
+          subject: 'Your appointment request at Lumière Hair Studio',
+          html: `<p>Hi ${escapeHtml(booking.name)},</p>
+                 <p>Unfortunately we’re unable to accommodate your requested time of
+                 <strong>${escapeHtml(formatDateForEmail(targetDate))}</strong> at
+                 <strong>${escapeHtml(formatTimeForEmail(targetTime))}</strong>.</p>
+                 <p>Here are the closest available times — click one to request it:</p>
+                 <p>${optionsHtml}</p>
+                 <p>123 Main Street, Your City<br>(555) 123-4567</p>`,
+        });
+      } catch (emailErr) {
+        emailWarning = 'Booking declined, but the notification email failed to send.';
       }
     }
 

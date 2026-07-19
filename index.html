@@ -123,6 +123,17 @@
     apptTimeSelect.appendChild(option);
   }
 
+  (function prefillFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('date') && !params.has('time') && !params.has('email')) return;
+
+    if (params.has('name')) bookingForm.name.value = params.get('name');
+    if (params.has('email')) bookingForm.email.value = params.get('email');
+    if (params.has('date')) apptDateInput.value = params.get('date');
+    if (params.has('time')) apptTimeSelect.value = params.get('time');
+    if (params.has('message')) bookingForm.message.value = params.get('message');
+  })();
+
   function validateAppointment(dateStr, timeStr) {
     if (!dateStr || !timeStr) {
       return 'Please choose an appointment date and time.';
